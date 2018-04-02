@@ -11,6 +11,7 @@ import java.util.logging.Level;
 
 public class QQDemo {
     public static ConsoleHandler handler = new ConsoleHandler();
+
     public static final QQClient qqClient = new QQClient(new QQClient.QQChatListener() {
         @Override
         public void onQRCode(File qrCode) {
@@ -54,7 +55,7 @@ public class QQDemo {
         @Override
         public void onLogout() {
         }
-    }, new File("D:\\Desktop\\"), handler);
+    }, new File("D:\\"), handler);
 
     static {
         handler.setLevel(Level.FINER);

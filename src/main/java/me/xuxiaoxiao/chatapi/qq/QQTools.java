@@ -4,9 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import me.xuxiaoxiao.chatapi.qq.entity.User;
 import me.xuxiaoxiao.chatapi.qq.protocol.ResultPoll;
-import me.xuxiaoxiao.xtools.common.XTools;
 import me.xuxiaoxiao.xtools.common.http.XOption;
-import me.xuxiaoxiao.xtools.common.http.XRequest;
 
 import java.net.CookieManager;
 import java.net.CookiePolicy;
@@ -15,7 +13,7 @@ import java.util.logging.Logger;
 public class QQTools {
     static final Logger LOGGER = Logger.getLogger("me.xuxiaoxiao.chatapi.qq");
     static final Gson GSON = new GsonBuilder().registerTypeAdapter(User.class, new User.UserParser()).registerTypeAdapter(ResultPoll.class, new ResultPoll.MessageParser()).create();
-    static final XOption HTTPOPTION = new XOption() {
+    static final XOption HTTPOPTION = new XOption(60000, 90000) {
         @Override
         public CookieManager cookieManager() {
             return new CookieManager(null, CookiePolicy.ACCEPT_ALL);
@@ -51,20 +49,5 @@ public class QQTools {
         for (int i = 0; n > i; ++i)
             e += (e << 5) + qrsig.charAt(i);
         return 2147483647 & e;
-    }
-
-    static String request(XRequest request, final String referer) {
-        for (int i = 0; i < 3; i++) {
-            if (!XTools.strEmpty(referer)) {
-                request.header("Origin", referer.substring(0, referer.indexOf('/', 10)), true);
-                request.header("Referer", referer, true);
-            }
-            String respStr = XTools.http(HTTPOPTION, request).string();
-            if (!XTools.strEmpty(respStr)) {
-                QQTools.LOGGER.finest(String.format("请求接口返回数据：\n%s", respStr));
-                return respStr;
-            }
-        }
-        return null;
     }
 }

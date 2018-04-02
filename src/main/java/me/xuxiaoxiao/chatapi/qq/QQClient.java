@@ -56,17 +56,17 @@ public class QQClient {
 
     public void sendFriend(long friend, String content) {
         QQTools.LOGGER.finer(String.format("向好友 %d 发送消息：%s", friend, content));
-        qqAPI.sendFriendMsg(friend, content);
+        qqAPI.send_buddy_msg2(friend, content);
     }
 
     public void sendGroup(long group, String content) {
         QQTools.LOGGER.finer(String.format("向群 %d 发送消息：%s", group, content));
-        qqAPI.sendFriendMsg(group, content);
+        qqAPI.send_buddy_msg2(group, content);
     }
 
     public void sendDiscuss(long discuss, String content) {
         QQTools.LOGGER.finer(String.format("向讨论组 %d 发送消息：%s", discuss, content));
-        qqAPI.sendDiscussMsg(discuss, content);
+        qqAPI.send_discu_msg2(discuss, content);
     }
 
     public interface QQChatListener {
@@ -131,7 +131,7 @@ public class QQClient {
                 //获取登录二维码
                 String qrCode = String.format("%s%sqrcode-%d-%d.jpg", folder.getAbsolutePath(), File.separator, System.currentTimeMillis(), (int) (Math.random() * 1000));
                 QQTools.LOGGER.finer(String.format("等待扫描二维码：%s", qrCode));
-                qqChatListener.onQRCode(qqAPI.ptQRShow(qrCode));
+                qqChatListener.onQRCode(qqAPI.ptqrshow(qrCode));
                 for (HttpCookie cookie : QQTools.HTTPOPTION.cookieManager.getCookieStore().getCookies()) {
                     if ("qrsig".equals(cookie.getName())) {
                         qqAPI.qrsig = cookie.getValue();
@@ -140,11 +140,11 @@ public class QQClient {
                 }
                 while (true) {
                     Thread.sleep(2000);
-                    RspQRLogin rspQRLogin = qqAPI.ptQRLogin();
+                    RspQRLogin rspQRLogin = qqAPI.ptqrlogin();
                     switch (rspQRLogin.code) {
                         case 0:
                             QQTools.LOGGER.finer("已授权登录");
-                            qqAPI.checkSig(rspQRLogin.uri);
+                            qqAPI.check_sig(rspQRLogin.uri);
                             return null;
                         case 66:
                             QQTools.LOGGER.finer("已扫描二维码");
@@ -166,13 +166,13 @@ public class QQClient {
 
         private String initial() {
             try {
-                qqAPI.getVFWebqq();
-                qqAPI.login();
+                qqAPI.getvfwebqq();
+                qqAPI.login2();
                 //获取自身信息
-                BaseRsp<User> rspMe = qqAPI.getSelfInfo();
+                BaseRsp<User> rspMe = qqAPI.get_self_info2();
                 qqContacts.me = rspMe.result;
                 //获取好友信息
-                BaseRsp<ResultGetUserFriends> rspFriends = qqAPI.getUserFriends();
+                BaseRsp<ResultGetUserFriends> rspFriends = qqAPI.get_user_friends2();
                 for (Category category : rspFriends.result.categories) {
                     qqContacts.categories.put(category.index, category);
                 }
@@ -195,22 +195,22 @@ public class QQClient {
                     friend.nick = info.nick;
                 }
                 //获取群信息
-                BaseRsp<ResultGetGroupNameListMask> rspGroups = qqAPI.getGroupNameListMask();
+                BaseRsp<ResultGetGroupNameListMask> rspGroups = qqAPI.get_group_name_list_mask2();
                 for (Group group : rspGroups.result.gnamelist) {
                     qqContacts.groups.put(group.gid, group);
                 }
                 //获取讨论组信息
-                BaseRsp<ResultGetDiscusList> rspDiscusses = qqAPI.getDiscusList();
+                BaseRsp<ResultGetDiscusList> rspDiscusses = qqAPI.get_discus_list();
                 for (Discuss discuss : rspDiscusses.result.dnamelist) {
                     qqContacts.discusses.put(discuss.did, discuss);
                 }
-                BaseRsp<ResultGetOnlineBuddies> rspOnline = qqAPI.getOnlineBuddies();
+                BaseRsp<ResultGetOnlineBuddies> rspOnline = qqAPI.get_online_buddies2();
                 for (ResultGetOnlineBuddies.OnlineBuddy onlineBuddy : rspOnline.result) {
                     if (qqContacts.friends.containsKey(onlineBuddy.uin)) {
                         qqContacts.friends.get(onlineBuddy.uin).online = true;
                     }
                 }
-                BaseRsp<ResultGetRecentList> rspRecent = qqAPI.getRecentList();
+                BaseRsp<ResultGetRecentList> rspRecent = qqAPI.get_recent_list2();
                 for (ResultGetRecentList.Recent recent : rspRecent.result) {
                     if (recent.type == 0) {
                         qqContacts.recent.add(qqContacts.friends.get(recent.uin));
@@ -231,7 +231,7 @@ public class QQClient {
             try {
                 int empty = 0;
                 while (!isInterrupted()) {
-                    BaseRsp<ResultPoll> rspPoll = qqAPI.poll();
+                    BaseRsp<ResultPoll> rspPoll = qqAPI.poll2();
                     if (rspPoll.result != null) {
                         empty = 0;
                         QQTools.LOGGER.finer("获取到消息");
@@ -241,7 +241,7 @@ public class QQClient {
                                     ResultPoll.UserMessage userMessage = (ResultPoll.UserMessage) item.value;
                                     User user = qqContacts.friends.get(userMessage.fromUser);
                                     if (user == null || (XTools.strEmpty(user.birthday) && XTools.strEmpty(user.gender))) {
-                                        user = qqAPI.getFriendInfo(userMessage.fromUser).result;
+                                        user = qqAPI.get_friend_info2(userMessage.fromUser).result;
                                         qqContacts.friends.put(user.uin, user);
                                     }
                                     qqChatListener.onUserMessage(userMessage.msgId, user, userMessage.content);
@@ -251,7 +251,7 @@ public class QQClient {
                                     ResultPoll.GroupMessage groupMessage = (ResultPoll.GroupMessage) item.value;
                                     Group group = qqContacts.groups.get(groupMessage.fromGroup);
                                     if (group.members == null) {
-                                        BaseRsp<ResultGetGroupInfo> rspGroup = qqAPI.getGroupInfo(group.code);
+                                        BaseRsp<ResultGetGroupInfo> rspGroup = qqAPI.get_group_info_ext2(group.code);
                                         QQTools.LOGGER.finer("获取群信息：" + QQTools.GSON.toJson(rspGroup));
                                         group.code = rspGroup.result.ginfo.code;
                                         group.name = rspGroup.result.ginfo.name;
@@ -303,7 +303,7 @@ public class QQClient {
                                     Discuss discuss = qqContacts.discusses.get(discussMessage.fromDiscuss);
                                     if (discuss.members == null) {
                                         discuss.members = new HashMap<>();
-                                        BaseRsp<ResultGetDiscuInfo> rspDiscuss = qqAPI.getDiscuInfo(discuss.did);
+                                        BaseRsp<ResultGetDiscuInfo> rspDiscuss = qqAPI.get_discu_info(discuss.did);
                                         QQTools.LOGGER.finer("获取群信息：" + QQTools.GSON.toJson(rspDiscuss));
                                         discuss.name = rspDiscuss.result.info.discu_name;
                                         for (ResultGetDiscuInfo.Info.Member member : rspDiscuss.result.info.mem_list) {
@@ -323,7 +323,7 @@ public class QQClient {
                         }
                     } else {
                         QQTools.LOGGER.finer("轮空：" + (empty++));
-                        if (empty > 3000) {
+                        if (empty > 10000) {
                             QQTools.LOGGER.warning("轮空超过3000次，停止");
                             return LISTEN_EXCEPTION;
                         }
