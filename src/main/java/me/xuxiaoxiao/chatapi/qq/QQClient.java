@@ -29,8 +29,8 @@ public class QQClient {
     private final QQAPI qqAPI = new QQAPI();
     private final QQThread qqThread = new QQThread();
     private final QQContacts qqContacts = new QQContacts();
-    private final QQChatListener qqChatListener;
     private final File folder;
+    private final QQChatListener qqChatListener;
 
     public QQClient(QQChatListener qqChatListener, File folder, Handler handler) {
         this.qqChatListener = qqChatListener;
@@ -128,16 +128,15 @@ public class QQClient {
                         qqAPI.pt_login_sig = cookie.getValue();
                     }
                 }
-                //获取登录二维码
-                String qrCode = String.format("%s%sqrcode-%d-%d.jpg", folder.getAbsolutePath(), File.separator, System.currentTimeMillis(), (int) (Math.random() * 1000));
-                QQTools.LOGGER.finer(String.format("等待扫描二维码：%s", qrCode));
-                qqChatListener.onQRCode(qqAPI.ptqrshow(qrCode));
+                //获取登录二维码和qrsig
+                qqChatListener.onQRCode(qqAPI.ptqrshow(String.format("%s%sqrcode-%d-%d.jpg", folder.getAbsolutePath(), File.separator, System.currentTimeMillis(), (int) (Math.random() * 1000))));
                 for (HttpCookie cookie : QQTools.HTTPOPTION.cookieManager.getCookieStore().getCookies()) {
                     if ("qrsig".equals(cookie.getName())) {
                         qqAPI.qrsig = cookie.getValue();
                         break;
                     }
                 }
+                //每隔两秒获取一次登录状态
                 while (true) {
                     Thread.sleep(2000);
                     RspQRLogin rspQRLogin = qqAPI.ptqrlogin();
@@ -158,8 +157,8 @@ public class QQClient {
                     }
                 }
             } catch (Exception e) {
-                QQTools.LOGGER.warning(String.format("登录异常：%s", e.getMessage()));
                 e.printStackTrace();
+                QQTools.LOGGER.warning(String.format("登录异常：%s", e.getMessage()));
                 return LOGIN_EXCEPTION + Arrays.toString(e.getStackTrace());
             }
         }
@@ -204,12 +203,14 @@ public class QQClient {
                 for (Discuss discuss : rspDiscusses.result.dnamelist) {
                     qqContacts.discusses.put(discuss.did, discuss);
                 }
+                //获取在线的好友信息
                 BaseRsp<ResultGetOnlineBuddies> rspOnline = qqAPI.get_online_buddies2();
                 for (ResultGetOnlineBuddies.OnlineBuddy onlineBuddy : rspOnline.result) {
                     if (qqContacts.friends.containsKey(onlineBuddy.uin)) {
                         qqContacts.friends.get(onlineBuddy.uin).online = true;
                     }
                 }
+                //获取最近联系人
                 BaseRsp<ResultGetRecentList> rspRecent = qqAPI.get_recent_list2();
                 for (ResultGetRecentList.Recent recent : rspRecent.result) {
                     if (recent.type == 0) {
@@ -223,17 +224,33 @@ public class QQClient {
                 return null;
             } catch (Exception e) {
                 e.printStackTrace();
-                return INIT_EXCEPTION;
+                QQTools.LOGGER.warning(String.format("初始化异常：%s", e.getMessage()));
+                return INIT_EXCEPTION + Arrays.toString(e.getStackTrace());
             }
         }
 
         private String listen() {
             try {
-                int empty = 0;
+                long lastEmpty = 0;
+                int failTime = 0;
+                int retryTime = 0;
                 while (!isInterrupted()) {
-                    BaseRsp<ResultPoll> rspPoll = qqAPI.poll2();
+                    BaseRsp<ResultPoll> rspPoll;
+                    try {
+                        rspPoll = qqAPI.poll2();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        if (retryTime++ < 5) {
+                            QQTools.LOGGER.warning(String.format("监听失败，重试：%d", retryTime));
+                            continue;
+                        } else {
+                            QQTools.LOGGER.severe("监听失败，重试次数过多");
+                            return LISTEN_EXCEPTION;
+                        }
+                    }
+                    retryTime = 0;
                     if (rspPoll.result != null) {
-                        empty = 0;
+                        failTime = 0;
                         QQTools.LOGGER.finer("获取到消息");
                         for (ResultPoll.Item item : rspPoll.result) {
                             switch (item.poll_type) {
@@ -319,13 +336,21 @@ public class QQClient {
                                     qqChatListener.onDiscussMessage(discussMessage.msgId, discuss, discuss.members.get(discussMessage.fromUser), discussMessage.content);
                                     break;
                                 }
+                                default:
+                                    QQTools.LOGGER.warning(String.format("获取到未知类型的消息：%s", item.poll_type));
+                                    break;
                             }
                         }
                     } else {
-                        QQTools.LOGGER.finer("轮空：" + (empty++));
-                        if (empty > 10000) {
-                            QQTools.LOGGER.warning("轮空超过3000次，停止");
+                        if (System.currentTimeMillis() - lastEmpty < 10000) {
+                            failTime++;
+                        }
+                        if (failTime > 50) {
+                            QQTools.LOGGER.severe("连接已经失效");
                             return LISTEN_EXCEPTION;
+                        } else {
+                            QQTools.LOGGER.fine("暂无信息");
+                            lastEmpty = System.currentTimeMillis();
                         }
                     }
                 }
