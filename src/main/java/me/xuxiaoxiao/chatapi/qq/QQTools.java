@@ -13,12 +13,6 @@ import java.util.logging.Logger;
 public class QQTools {
     static final Logger LOGGER = Logger.getLogger("me.xuxiaoxiao.chatapi.qq");
     static final Gson GSON = new GsonBuilder().registerTypeAdapter(User.class, new User.UserParser()).registerTypeAdapter(ResultPoll.class, new ResultPoll.MessageParser()).create();
-    static final XOption HTTPOPTION = new XOption(60000, 90000) {
-        @Override
-        public CookieManager cookieManager() {
-            return new CookieManager(null, CookiePolicy.ACCEPT_ALL);
-        }
-    };
 
     public static String hash(String qqStr, String ptWebqq) {
         int[] ptWebqqHash = new int[4];

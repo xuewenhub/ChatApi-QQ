@@ -166,7 +166,7 @@ public class QQClient {
             try {
                 //获取pt_login_sig
                 qqAPI.xlogin();
-                for (HttpCookie cookie : QQTools.HTTPOPTION.cookieManager.getCookieStore().getCookies()) {
+                for (HttpCookie cookie : qqAPI.httpOption.cookieManager.getCookieStore().getCookies()) {
                     if ("pt_login_sig".equals(cookie.getName())) {
                         qqAPI.pt_login_sig = cookie.getValue();
                     }
@@ -174,7 +174,7 @@ public class QQClient {
                 if (XTools.strEmpty(checkSig)) {
                     //获取登录二维码和qrsig
                     qqChatListener.onQRCode(qqAPI.ptqrshow(String.format("%s%sqrcode-%d-%d.jpg", folder.getAbsolutePath(), File.separator, System.currentTimeMillis(), (int) (Math.random() * 1000))));
-                    for (HttpCookie cookie : QQTools.HTTPOPTION.cookieManager.getCookieStore().getCookies()) {
+                    for (HttpCookie cookie : qqAPI.httpOption.cookieManager.getCookieStore().getCookies()) {
                         if ("qrsig".equals(cookie.getName())) {
                             qqAPI.qrsig = cookie.getValue();
                             break;

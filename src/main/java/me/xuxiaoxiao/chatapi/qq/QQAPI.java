@@ -4,9 +4,12 @@ import com.google.gson.reflect.TypeToken;
 import me.xuxiaoxiao.chatapi.qq.entity.User;
 import me.xuxiaoxiao.chatapi.qq.protocol.*;
 import me.xuxiaoxiao.xtools.common.XTools;
+import me.xuxiaoxiao.xtools.common.http.XOption;
 import me.xuxiaoxiao.xtools.common.http.XRequest;
 
 import java.io.File;
+import java.net.CookieManager;
+import java.net.CookiePolicy;
 
 class QQAPI {
     String pt_login_sig;
@@ -14,6 +17,12 @@ class QQAPI {
     String vfwebqq;
     String qqStr;
     String psessionid;
+    XOption httpOption = new XOption(60000, 120000) {
+        @Override
+        public CookieManager cookieManager() {
+            return new CookieManager(null, CookiePolicy.ACCEPT_ALL);
+        }
+    };
 
     /**
      * 获取登录所需的各参数。这些参数都在Cookie中返回。
@@ -35,7 +44,7 @@ class QQAPI {
         request.query("t", 20131024001L);
         request.query("target", "self");
         request.header("Referer", "http://web2.qq.com/");
-        XTools.http(QQTools.HTTPOPTION, request);
+        XTools.http(httpOption, request);
     }
 
     /**
@@ -56,7 +65,7 @@ class QQAPI {
         request.query("t", Math.random());
         request.query("v", 4);
         request.header("Referer", "https://xui.ptlogin2.qq.com/cgi-bin/xlogin?daid=164&target=self&style=40&pt_disable_pwd=1&mibao_css=m_webqq&appid=501004106&enable_qlogin=0&no_verifyimg=1&s_url=http://web2.qq.com/proxy.html&f_url=loginerroralert&strong_login=1&login_state=10&t=20131024001");
-        return XTools.http(QQTools.HTTPOPTION, request).file(path);
+        return XTools.http(httpOption, request).file(path);
     }
 
     /**
@@ -83,12 +92,12 @@ class QQAPI {
         request.query("t", 1);
         request.query("u1", "http://web2.qq.com/proxy.html");
         request.header("Referer", "https://xui.ptlogin2.qq.com/cgi-bin/xlogin?daid=164&target=self&style=40&pt_disable_pwd=1&mibao_css=m_webqq&appid=501004106&enable_qlogin=0&no_verifyimg=1&s_url=http%3A%2F%2Fweb2.qq.com%2Fproxy.html&f_url=loginerroralert&strong_login=1&login_state=10&t=20131024001");
-        return new RspQRLogin(XTools.http(QQTools.HTTPOPTION, request).string());
+        return new RspQRLogin(XTools.http(httpOption, request).string());
     }
 
     public void check_sig(String uri) {
         XRequest request = XRequest.GET(uri);
-        XTools.http(QQTools.HTTPOPTION, request);
+        XTools.http(httpOption, request);
     }
 
     public void getvfwebqq() {
@@ -98,7 +107,7 @@ class QQAPI {
         request.query("ptwebqq", "");
         request.query("t", System.currentTimeMillis());
         request.header("Referer", "http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1");
-        BaseRsp<ResultVFWebqq> resultVFWebqq = QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), new TypeToken<BaseRsp<ResultVFWebqq>>() {
+        BaseRsp<ResultVFWebqq> resultVFWebqq = QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), new TypeToken<BaseRsp<ResultVFWebqq>>() {
         }.getType());
         this.vfwebqq = resultVFWebqq.result.vfwebqq;
     }
@@ -108,7 +117,7 @@ class QQAPI {
         request.header("Origin", "http://d1.web2.qq.com");
         request.header("Referer", "http://d1.web2.qq.com/proxy.html?v=20151105001&callback=1&id=2");
         request.content("r", QQTools.GSON.toJson(new BaseReq(null, "", vfwebqq, "")));
-        BaseRsp<ResultLogin> resultLogin = QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), new TypeToken<BaseRsp<ResultLogin>>() {
+        BaseRsp<ResultLogin> resultLogin = QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), new TypeToken<BaseRsp<ResultLogin>>() {
         }.getType());
         this.qqStr = String.valueOf(resultLogin.result.uin);
         this.psessionid = resultLogin.result.psessionid;
@@ -120,7 +129,7 @@ class QQAPI {
         request.header("Origin", "http://s.web2.qq.com");
         request.header("Referer", "http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1");
         request.content("r", QQTools.GSON.toJson(new BaseReq(QQTools.hash(qqStr, ""), null, vfwebqq, null)));
-        return QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), new TypeToken<BaseRsp<ResultGetUserFriends>>() {
+        return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), new TypeToken<BaseRsp<ResultGetUserFriends>>() {
         }.getType());
     }
 
@@ -129,7 +138,7 @@ class QQAPI {
         request.header("Origin", "http://s.web2.qq.com");
         request.header("Referer", "http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1");
         request.content("r", QQTools.GSON.toJson(new BaseReq(QQTools.hash(qqStr, ""), null, vfwebqq, null)));
-        return QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), new TypeToken<BaseRsp<ResultGetGroupNameListMask>>() {
+        return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), new TypeToken<BaseRsp<ResultGetGroupNameListMask>>() {
         }.getType());
     }
 
@@ -140,7 +149,7 @@ class QQAPI {
         request.query("t", System.currentTimeMillis());
         request.query("vfwebqq", vfwebqq);
         request.header("Referer", "http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1");
-        return QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), new TypeToken<BaseRsp<ResultGetDiscusList>>() {
+        return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), new TypeToken<BaseRsp<ResultGetDiscusList>>() {
         }.getType());
     }
 
@@ -148,7 +157,7 @@ class QQAPI {
         XRequest request = XRequest.GET("http://s.web2.qq.com/api/get_self_info2");
         request.query("t", System.currentTimeMillis());
         request.header("Referer", "http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1");
-        return QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), new TypeToken<BaseRsp<User>>() {
+        return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), new TypeToken<BaseRsp<User>>() {
         }.getType());
     }
 
@@ -158,7 +167,7 @@ class QQAPI {
         request.header("Referer", "http://d1.web2.qq.com/proxy.html?v=20151105001&callback=1&id=2");
         request.content("r", QQTools.GSON.toJson(new BaseReq(null, null, vfwebqq, psessionid)));
 
-        return QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), new TypeToken<BaseRsp<ResultGetRecentList>>() {
+        return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), new TypeToken<BaseRsp<ResultGetRecentList>>() {
         }.getType());
     }
 
@@ -169,17 +178,17 @@ class QQAPI {
         request.query("t", System.currentTimeMillis());
         request.query("vfwebqq", vfwebqq);
         request.header("Referer", "http://d1.web2.qq.com/proxy.html?v=20151105001&callback=1&id=2");
-        return QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), new TypeToken<BaseRsp<ResultGetOnlineBuddies>>() {
+        return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), new TypeToken<BaseRsp<ResultGetOnlineBuddies>>() {
         }.getType());
     }
 
 
     public BaseRsp<ResultPoll> poll2() {
-        XRequest request = XRequest.POST("https://d1.web2.qq.com/channel/poll2");
+        XRequest request = XRequest.POST("http://d1.web2.qq.com/channel/poll2");
         request.header("Origin", "http://d1.web2.qq.com");
         request.header("Referer", "http://d1.web2.qq.com/proxy.html?v=20151105001&callback=1&id=2");
         request.content("r", QQTools.GSON.toJson(new BaseReq(null, "", null, psessionid)));
-        return QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), new TypeToken<BaseRsp<ResultPoll>>() {
+        return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), new TypeToken<BaseRsp<ResultPoll>>() {
         }.getType());
     }
 
@@ -191,7 +200,7 @@ class QQAPI {
         request.query("tuin", uin);
         request.query("vfwebqq", vfwebqq);
         request.header("Referer", "http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1");
-        return QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), new TypeToken<BaseRsp<User>>() {
+        return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), new TypeToken<BaseRsp<User>>() {
         }.getType());
     }
 
@@ -201,7 +210,7 @@ class QQAPI {
         request.query("tuin", uin);
         request.query("vfwebqq", vfwebqq);
         request.header("Referer", "http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1");
-        return QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), new TypeToken<BaseRsp<ResultLongNick>>() {
+        return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), new TypeToken<BaseRsp<ResultLongNick>>() {
         }.getType());
     }
 
@@ -211,7 +220,7 @@ class QQAPI {
         request.query("t", System.currentTimeMillis());
         request.query("vfwebqq", vfwebqq);
         request.header("Referer", "http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1");
-        return QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), new TypeToken<BaseRsp<ResultGetGroupInfo>>() {
+        return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), new TypeToken<BaseRsp<ResultGetGroupInfo>>() {
         }.getType());
     }
 
@@ -223,16 +232,16 @@ class QQAPI {
         request.query("t", System.currentTimeMillis());
         request.query("vfwebqq", vfwebqq);
         request.header("Referer", "http://d1.web2.qq.com/proxy.html?v=20151105001&callback=1&id=2");
-        return QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), new TypeToken<BaseRsp<ResultGetDiscuInfo>>() {
+        return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), new TypeToken<BaseRsp<ResultGetDiscuInfo>>() {
         }.getType());
     }
 
     public BaseRsp send_qun_msg2(long group, String content) {
-        XRequest request = XRequest.POST("https://d1.web2.qq.com/channel/send_qun_msg2");
+        XRequest request = XRequest.POST("http://d1.web2.qq.com/channel/send_qun_msg2");
         request.header("Origin", "http://d1.web2.qq.com");
         request.header("Referer", "http://d1.web2.qq.com/cfproxy.html?v=20151105001&callback=1");
         request.content("r", new ReqSendGroupMsg(group, content, psessionid));
-        return QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), BaseRsp.class);
+        return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), BaseRsp.class);
     }
 
     public BaseRsp send_discu_msg2(long discuss, String content) {
@@ -240,7 +249,7 @@ class QQAPI {
         request.header("Origin", "http://d1.web2.qq.com");
         request.header("Referer", "http://d1.web2.qq.com/cfproxy.html?v=20151105001&callback=1");
         request.content("r", new ReqSendDiscussMsg(discuss, content, psessionid));
-        return QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), BaseRsp.class);
+        return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), BaseRsp.class);
     }
 
     public BaseRsp send_buddy_msg2(long friend, String content) {
@@ -248,7 +257,7 @@ class QQAPI {
         request.header("Origin", "http://d1.web2.qq.com");
         request.header("Referer", "http://d1.web2.qq.com/cfproxy.html?v=20151105001&callback=1");
         request.content("r", new ReqSendFriendMsg(friend, content, psessionid));
-        return QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), BaseRsp.class);
+        return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), BaseRsp.class);
     }
 
     public BaseRsp change_status2(String status) {
@@ -258,6 +267,6 @@ class QQAPI {
         request.query("psessionid", psessionid);
         request.query("t", System.currentTimeMillis());
         request.header("Referer", "http://d1.web2.qq.com/proxy.html?v=20151105001&callback=1&id=2");
-        return QQTools.GSON.fromJson(XTools.http(QQTools.HTTPOPTION, request).string(), BaseRsp.class);
+        return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), BaseRsp.class);
     }
 }
