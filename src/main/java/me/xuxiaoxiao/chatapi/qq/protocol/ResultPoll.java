@@ -1,6 +1,9 @@
 package me.xuxiaoxiao.chatapi.qq.protocol;
 
 import com.google.gson.*;
+import me.xuxiaoxiao.chatapi.qq.entity.DiscussMessage;
+import me.xuxiaoxiao.chatapi.qq.entity.GroupMessage;
+import me.xuxiaoxiao.chatapi.qq.entity.UserMessage;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -17,38 +20,6 @@ public class ResultPoll extends ArrayList<ResultPoll.Item> {
         public String color = "000000";
         public int size = 10;
         public int[] style = {0, 0, 0};
-    }
-
-    public static class UserMessage {
-        public int msgId;
-        public int msgType;
-        public long fromUser;
-        public long toUser;
-        public String content;
-        public Font font;
-        public long time;
-    }
-
-    public static class GroupMessage {
-        public int msgId;
-        public int msgType;
-        public long fromGroup;
-        public long fromUser;
-        public long toUser;
-        public String content;
-        public Font font;
-        public long time;
-    }
-
-    public static class DiscussMessage {
-        public int msgId;
-        public int msgType;
-        public long fromDiscuss;
-        public long fromUser;
-        public long toUser;
-        public String content;
-        public Font font;
-        public long time;
     }
 
     public static class MessageParser implements JsonDeserializer {

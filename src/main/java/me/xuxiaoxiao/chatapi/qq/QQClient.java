@@ -1,9 +1,6 @@
 package me.xuxiaoxiao.chatapi.qq;
 
-import me.xuxiaoxiao.chatapi.qq.entity.Category;
-import me.xuxiaoxiao.chatapi.qq.entity.Discuss;
-import me.xuxiaoxiao.chatapi.qq.entity.Group;
-import me.xuxiaoxiao.chatapi.qq.entity.User;
+import me.xuxiaoxiao.chatapi.qq.entity.*;
 import me.xuxiaoxiao.chatapi.qq.protocol.*;
 import me.xuxiaoxiao.xtools.common.XTools;
 
@@ -11,6 +8,7 @@ import java.io.File;
 import java.net.HttpCookie;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 
 public class QQClient {
@@ -31,6 +29,11 @@ public class QQClient {
     private final QQContacts qqContacts = new QQContacts();
     private final File folder;
     private final QQChatListener qqChatListener;
+    private String checkSig;
+
+    public QQClient(QQChatListener qqChatListener) {
+        this(qqChatListener, null, new ConsoleHandler());
+    }
 
     public QQClient(QQChatListener qqChatListener, File folder, Handler handler) {
         this.qqChatListener = qqChatListener;
@@ -52,6 +55,38 @@ public class QQClient {
 
     public void shutdown() {
         qqThread.interrupt();
+    }
+
+    public User userMe() {
+        return this.qqContacts.me;
+    }
+
+    public User userFriend(Long uid) {
+        return this.qqContacts.friends.get(uid);
+    }
+
+    public HashMap<Long, User> userFriends() {
+        return this.qqContacts.friends;
+    }
+
+    public Discuss userDiscus(Long did) {
+        return this.qqContacts.discusses.get(did);
+    }
+
+    public HashMap<Long, Discuss> userDiscuss() {
+        return this.qqContacts.discusses;
+    }
+
+    public Group userGroup(Long gid) {
+        return this.qqContacts.groups.get(gid);
+    }
+
+    public HashMap<Long, Group> userGroups() {
+        return this.qqContacts.groups;
+    }
+
+    public HashMap<Integer, Category> userCategory() {
+        return this.qqContacts.categories;
     }
 
     public void sendFriend(long friend, String content) {
@@ -88,35 +123,43 @@ public class QQClient {
     }
 
     private class QQThread extends Thread {
+        private int loginCount = 0;
+        private int emptyCount = 0;
+        private int retryCount = 0;
+        private long lastEmpty = 0;
 
         @Override
         public void run() {
-            //用户登录
-            QQTools.LOGGER.fine("正在登录");
-            String loginErr = login();
-            if (!XTools.strEmpty(loginErr)) {
-                QQTools.LOGGER.severe(String.format("登录出现错误：%s", loginErr));
-                qqChatListener.onFailure(loginErr);
-                return;
+            while (!isInterrupted()) {
+                //用户登录
+                QQTools.LOGGER.fine("正在登录");
+                String loginErr = login();
+                if (!XTools.strEmpty(loginErr)) {
+                    QQTools.LOGGER.severe(String.format("登录出现错误：%s", loginErr));
+                    qqChatListener.onFailure(loginErr);
+                    return;
+                }
+                //用户初始化
+                QQTools.LOGGER.fine("正在初始化");
+                String initErr = initial();
+                if (!XTools.strEmpty(initErr)) {
+                    QQTools.LOGGER.severe(String.format("初始化出现错误：%s", initErr));
+                    qqChatListener.onFailure(initErr);
+                    return;
+                }
+                qqChatListener.onLogin();
+                //同步消息
+                QQTools.LOGGER.fine("正在监听消息");
+                String listenErr = listen();
+                if (!XTools.strEmpty(listenErr)) {
+                    QQTools.LOGGER.severe(String.format("监听消息出现错误：%s", listenErr));
+                    qqChatListener.onFailure(listenErr);
+                    if (loginCount++ > 10) {
+                        return;
+                    }
+                }
+                qqChatListener.onLogout();
             }
-            //用户初始化
-            QQTools.LOGGER.fine("正在初始化");
-            String initErr = initial();
-            if (!XTools.strEmpty(initErr)) {
-                QQTools.LOGGER.severe(String.format("初始化出现错误：%s", initErr));
-                qqChatListener.onFailure(initErr);
-                return;
-            }
-            qqChatListener.onLogin();
-            //同步消息
-            QQTools.LOGGER.fine("正在监听消息");
-            String listenErr = listen();
-            if (!XTools.strEmpty(listenErr)) {
-                QQTools.LOGGER.severe(String.format("监听消息出现错误：%s", listenErr));
-                qqChatListener.onFailure(listenErr);
-                return;
-            }
-            qqChatListener.onLogout();
         }
 
         private String login() {
@@ -128,33 +171,40 @@ public class QQClient {
                         qqAPI.pt_login_sig = cookie.getValue();
                     }
                 }
-                //获取登录二维码和qrsig
-                qqChatListener.onQRCode(qqAPI.ptqrshow(String.format("%s%sqrcode-%d-%d.jpg", folder.getAbsolutePath(), File.separator, System.currentTimeMillis(), (int) (Math.random() * 1000))));
-                for (HttpCookie cookie : QQTools.HTTPOPTION.cookieManager.getCookieStore().getCookies()) {
-                    if ("qrsig".equals(cookie.getName())) {
-                        qqAPI.qrsig = cookie.getValue();
-                        break;
-                    }
-                }
-                //每隔两秒获取一次登录状态
-                while (true) {
-                    Thread.sleep(2000);
-                    RspQRLogin rspQRLogin = qqAPI.ptqrlogin();
-                    switch (rspQRLogin.code) {
-                        case 0:
-                            QQTools.LOGGER.finer("已授权登录");
-                            qqAPI.check_sig(rspQRLogin.uri);
-                            return null;
-                        case 66:
-                            QQTools.LOGGER.finer("已扫描二维码");
+                if (XTools.strEmpty(checkSig)) {
+                    //获取登录二维码和qrsig
+                    qqChatListener.onQRCode(qqAPI.ptqrshow(String.format("%s%sqrcode-%d-%d.jpg", folder.getAbsolutePath(), File.separator, System.currentTimeMillis(), (int) (Math.random() * 1000))));
+                    for (HttpCookie cookie : QQTools.HTTPOPTION.cookieManager.getCookieStore().getCookies()) {
+                        if ("qrsig".equals(cookie.getName())) {
+                            qqAPI.qrsig = cookie.getValue();
                             break;
-                        case 67:
-                            QQTools.LOGGER.finer("等待授权登录");
-                            break;
-                        default:
-                            QQTools.LOGGER.finer("登录超时");
-                            return LOGIN_EXCEPTION;
+                        }
                     }
+                    //每隔两秒获取一次登录状态
+                    while (true) {
+                        Thread.sleep(2000);
+                        RspQRLogin rspQRLogin = qqAPI.ptqrlogin();
+                        switch (rspQRLogin.code) {
+                            case 0:
+                                QQTools.LOGGER.finer("已授权登录");
+                                checkSig = rspQRLogin.uri;
+                                qqAPI.check_sig(rspQRLogin.uri);
+                                return null;
+                            case 66:
+                                QQTools.LOGGER.finer("已扫描二维码");
+                                break;
+                            case 67:
+                                QQTools.LOGGER.finer("等待授权登录");
+                                break;
+                            default:
+                                QQTools.LOGGER.finer("登录超时");
+                                return LOGIN_EXCEPTION;
+                        }
+                    }
+                } else {
+                    QQTools.LOGGER.finer("重新登录");
+                    qqAPI.check_sig(checkSig);
+                    return null;
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -231,126 +281,121 @@ public class QQClient {
 
         private String listen() {
             try {
-                long lastEmpty = 0;
-                int failTime = 0;
-                int retryTime = 0;
                 while (!isInterrupted()) {
-                    BaseRsp<ResultPoll> rspPoll;
                     try {
-                        rspPoll = qqAPI.poll2();
+                        BaseRsp<ResultPoll> rspPoll = qqAPI.poll2();
+                        if (rspPoll.result != null) {
+                            QQTools.LOGGER.finer("获取到消息");
+                            for (ResultPoll.Item item : rspPoll.result) {
+                                switch (item.poll_type) {
+                                    case "message": {
+                                        UserMessage userMessage = (UserMessage) item.value;
+                                        User user = qqContacts.friends.get(userMessage.fromUser);
+                                        if (user == null || (XTools.strEmpty(user.birthday) && XTools.strEmpty(user.gender))) {
+                                            user = qqAPI.get_friend_info2(userMessage.fromUser).result;
+                                            qqContacts.friends.put(user.uin, user);
+                                        }
+                                        qqChatListener.onUserMessage(userMessage.msgId, user, userMessage.content);
+                                        break;
+                                    }
+                                    case "group_message": {
+                                        GroupMessage groupMessage = (GroupMessage) item.value;
+                                        Group group = qqContacts.groups.get(groupMessage.fromGroup);
+                                        if (group.members == null) {
+                                            BaseRsp<ResultGetGroupInfo> rspGroup = qqAPI.get_group_info_ext2(group.code);
+                                            QQTools.LOGGER.finer("获取群信息：" + QQTools.GSON.toJson(rspGroup));
+                                            group.code = rspGroup.result.ginfo.code;
+                                            group.name = rspGroup.result.ginfo.name;
+                                            group.flag = rspGroup.result.ginfo.flag;
+                                            group.face = rspGroup.result.ginfo.face;
+                                            group.level = rspGroup.result.ginfo.level;
+                                            group.owner = rspGroup.result.ginfo.owner;
+                                            group.memo = rspGroup.result.ginfo.memo;
+                                            group.fingermemo = rspGroup.result.ginfo.fingermemo;
+                                            group.createtime = rspGroup.result.ginfo.createtime;
+                                            group.option = rspGroup.result.ginfo.option;
+                                            group.members = new HashMap<>();
+                                            for (ResultGetGroupInfo.GInfo.Member member : rspGroup.result.ginfo.members) {
+                                                User user = new User();
+                                                user.uin = member.muin;
+                                                group.members.put(user.uin, user);
+                                            }
+                                            if (rspGroup.result.minfo != null) {
+                                                for (ResultGetGroupInfo.MInfo mInfo : rspGroup.result.minfo) {
+                                                    User user = group.members.get(mInfo.uin);
+                                                    user.nick = mInfo.nick;
+                                                    user.gender = mInfo.gender;
+                                                    user.country = mInfo.country;
+                                                    user.province = mInfo.province;
+                                                    user.city = mInfo.city;
+                                                }
+                                            }
+                                            if (rspGroup.result.stats != null) {
+                                                for (ResultGetGroupInfo.Stat stat : rspGroup.result.stats) {
+                                                    group.members.get(stat.uin).stat = stat.stat;
+                                                }
+                                            }
+                                            if (rspGroup.result.cards != null) {
+                                                for (ResultGetGroupInfo.Card card : rspGroup.result.cards) {
+                                                    group.members.get(card.muin).card = card.card;
+                                                }
+                                            }
+                                            if (rspGroup.result.vipinfo != null) {
+                                                for (ResultGetGroupInfo.VipInfo vipInfo : rspGroup.result.vipinfo) {
+                                                    group.members.get(vipInfo.u).vip_level = vipInfo.vip_level;
+                                                }
+                                            }
+                                        }
+                                        qqChatListener.onGroupMessage(groupMessage.msgId, group, group.members.get(groupMessage.fromUser), groupMessage.content);
+                                        break;
+                                    }
+                                    case "discu_message": {
+                                        DiscussMessage discussMessage = (DiscussMessage) item.value;
+                                        Discuss discuss = qqContacts.discusses.get(discussMessage.fromDiscuss);
+                                        if (discuss.members == null) {
+                                            discuss.members = new HashMap<>();
+                                            BaseRsp<ResultGetDiscuInfo> rspDiscuss = qqAPI.get_discu_info(discuss.did);
+                                            QQTools.LOGGER.finer("获取群信息：" + QQTools.GSON.toJson(rspDiscuss));
+                                            discuss.name = rspDiscuss.result.info.discu_name;
+                                            for (ResultGetDiscuInfo.Info.Member member : rspDiscuss.result.info.mem_list) {
+                                                User user = new User();
+                                                user.uin = member.mem_uin;
+                                                user.account = member.ruin;
+                                                discuss.members.put(user.uin, user);
+                                            }
+                                            for (ResultGetDiscuInfo.MemberInfo memberInfo : rspDiscuss.result.mem_info) {
+                                                discuss.members.get(memberInfo.uin).nick = memberInfo.nick;
+                                            }
+                                        }
+                                        qqChatListener.onDiscussMessage(discussMessage.msgId, discuss, discuss.members.get(discussMessage.fromUser), discussMessage.content);
+                                        break;
+                                    }
+                                    default:
+                                        QQTools.LOGGER.warning(String.format("获取到未知类型的消息：%s", item.poll_type));
+                                        break;
+                                }
+                            }
+                            emptyCount = 0;
+                        } else {
+                            if (System.currentTimeMillis() - lastEmpty < 10000) {
+                                emptyCount++;
+                            }
+                            if (emptyCount > 30) {
+                                QQTools.LOGGER.severe("连接已经失效");
+                                return LISTEN_EXCEPTION;
+                            } else {
+                                QQTools.LOGGER.fine("暂无信息");
+                                lastEmpty = System.currentTimeMillis();
+                            }
+                        }
+                        retryCount = 0;
                     } catch (Exception e) {
                         e.printStackTrace();
-                        if (retryTime++ < 5) {
-                            QQTools.LOGGER.warning(String.format("监听失败，重试：%d", retryTime));
-                            continue;
+                        if (retryCount++ < 5) {
+                            QQTools.LOGGER.warning(String.format("监听失败，重试：%d", retryCount));
                         } else {
                             QQTools.LOGGER.severe("监听失败，重试次数过多");
                             return LISTEN_EXCEPTION;
-                        }
-                    }
-                    retryTime = 0;
-                    if (rspPoll.result != null) {
-                        failTime = 0;
-                        QQTools.LOGGER.finer("获取到消息");
-                        for (ResultPoll.Item item : rspPoll.result) {
-                            switch (item.poll_type) {
-                                case "message": {
-                                    ResultPoll.UserMessage userMessage = (ResultPoll.UserMessage) item.value;
-                                    User user = qqContacts.friends.get(userMessage.fromUser);
-                                    if (user == null || (XTools.strEmpty(user.birthday) && XTools.strEmpty(user.gender))) {
-                                        user = qqAPI.get_friend_info2(userMessage.fromUser).result;
-                                        qqContacts.friends.put(user.uin, user);
-                                    }
-                                    qqChatListener.onUserMessage(userMessage.msgId, user, userMessage.content);
-                                    break;
-                                }
-                                case "group_message": {
-                                    ResultPoll.GroupMessage groupMessage = (ResultPoll.GroupMessage) item.value;
-                                    Group group = qqContacts.groups.get(groupMessage.fromGroup);
-                                    if (group.members == null) {
-                                        BaseRsp<ResultGetGroupInfo> rspGroup = qqAPI.get_group_info_ext2(group.code);
-                                        QQTools.LOGGER.finer("获取群信息：" + QQTools.GSON.toJson(rspGroup));
-                                        group.code = rspGroup.result.ginfo.code;
-                                        group.name = rspGroup.result.ginfo.name;
-                                        group.flag = rspGroup.result.ginfo.flag;
-                                        group.face = rspGroup.result.ginfo.face;
-                                        group.level = rspGroup.result.ginfo.level;
-                                        group.owner = rspGroup.result.ginfo.owner;
-                                        group.memo = rspGroup.result.ginfo.memo;
-                                        group.fingermemo = rspGroup.result.ginfo.fingermemo;
-                                        group.createtime = rspGroup.result.ginfo.createtime;
-                                        group.option = rspGroup.result.ginfo.option;
-                                        group.members = new HashMap<>();
-                                        for (ResultGetGroupInfo.GInfo.Member member : rspGroup.result.ginfo.members) {
-                                            User user = new User();
-                                            user.uin = member.muin;
-                                            group.members.put(user.uin, user);
-                                        }
-                                        if (rspGroup.result.minfo != null) {
-                                            for (ResultGetGroupInfo.MInfo mInfo : rspGroup.result.minfo) {
-                                                User user = group.members.get(mInfo.uin);
-                                                user.nick = mInfo.nick;
-                                                user.gender = mInfo.gender;
-                                                user.country = mInfo.country;
-                                                user.province = mInfo.province;
-                                                user.city = mInfo.city;
-                                            }
-                                        }
-                                        if (rspGroup.result.stats != null) {
-                                            for (ResultGetGroupInfo.Stat stat : rspGroup.result.stats) {
-                                                group.members.get(stat.uin).stat = stat.stat;
-                                            }
-                                        }
-                                        if (rspGroup.result.cards != null) {
-                                            for (ResultGetGroupInfo.Card card : rspGroup.result.cards) {
-                                                group.members.get(card.muin).card = card.card;
-                                            }
-                                        }
-                                        if (rspGroup.result.vipinfo != null) {
-                                            for (ResultGetGroupInfo.VipInfo vipInfo : rspGroup.result.vipinfo) {
-                                                group.members.get(vipInfo.u).vip_level = vipInfo.vip_level;
-                                            }
-                                        }
-                                    }
-                                    qqChatListener.onGroupMessage(groupMessage.msgId, group, group.members.get(groupMessage.fromUser), groupMessage.content);
-                                    break;
-                                }
-                                case "discu_message": {
-                                    ResultPoll.DiscussMessage discussMessage = (ResultPoll.DiscussMessage) item.value;
-                                    Discuss discuss = qqContacts.discusses.get(discussMessage.fromDiscuss);
-                                    if (discuss.members == null) {
-                                        discuss.members = new HashMap<>();
-                                        BaseRsp<ResultGetDiscuInfo> rspDiscuss = qqAPI.get_discu_info(discuss.did);
-                                        QQTools.LOGGER.finer("获取群信息：" + QQTools.GSON.toJson(rspDiscuss));
-                                        discuss.name = rspDiscuss.result.info.discu_name;
-                                        for (ResultGetDiscuInfo.Info.Member member : rspDiscuss.result.info.mem_list) {
-                                            User user = new User();
-                                            user.uin = member.mem_uin;
-                                            user.account = member.ruin;
-                                            discuss.members.put(user.uin, user);
-                                        }
-                                        for (ResultGetDiscuInfo.MemberInfo memberInfo : rspDiscuss.result.mem_info) {
-                                            discuss.members.get(memberInfo.uin).nick = memberInfo.nick;
-                                        }
-                                    }
-                                    qqChatListener.onDiscussMessage(discussMessage.msgId, discuss, discuss.members.get(discussMessage.fromUser), discussMessage.content);
-                                    break;
-                                }
-                                default:
-                                    QQTools.LOGGER.warning(String.format("获取到未知类型的消息：%s", item.poll_type));
-                                    break;
-                            }
-                        }
-                    } else {
-                        if (System.currentTimeMillis() - lastEmpty < 10000) {
-                            failTime++;
-                        }
-                        if (failTime > 50) {
-                            QQTools.LOGGER.severe("连接已经失效");
-                            return LISTEN_EXCEPTION;
-                        } else {
-                            QQTools.LOGGER.fine("暂无信息");
-                            lastEmpty = System.currentTimeMillis();
                         }
                     }
                 }

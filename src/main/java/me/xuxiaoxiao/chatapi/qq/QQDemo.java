@@ -40,7 +40,7 @@ public class QQDemo {
 
         @Override
         public void onGroupMessage(int msgId, Group group, User from, String content) {
-            if (from == null) {
+            if (from.uin == qqClient.userMe().uin) {
                 System.out.println(String.format("我在群 %s 中说：%s", group.name, content));
             } else {
                 System.out.println(String.format("群 %s 中的 %s 说：%s", group.name, from.nick, content));
@@ -49,7 +49,7 @@ public class QQDemo {
 
         @Override
         public void onDiscussMessage(int msgId, Discuss discuss, User from, String content) {
-            if (from == null) {
+            if (from.uin == qqClient.userMe().uin) {
                 System.out.println(String.format("我在讨论组 %s 中说：%s", discuss.name, content));
             } else {
                 System.out.println(String.format("讨论组 %s 中的 %s 说：%s", discuss.name, from.nick, content));
@@ -59,7 +59,7 @@ public class QQDemo {
         @Override
         public void onLogout() {
         }
-    }, new File("D:\\"), handler);
+    }, null, handler);
 
     public static void main(String[] args) {
         qqClient.startup();
