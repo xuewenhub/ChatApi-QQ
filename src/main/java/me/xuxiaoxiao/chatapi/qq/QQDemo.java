@@ -10,27 +10,31 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 
 public class QQDemo {
-    public static ConsoleHandler handler = new ConsoleHandler();
+    public static final ConsoleHandler HANDLER = new ConsoleHandler();
 
     static {
-        handler.setLevel(Level.FINER);
+        HANDLER.setLevel(Level.FINER);
     }
 
     public static final QQClient qqClient = new QQClient(new QQClient.QQChatListener() {
         @Override
         public void onQRCode(File qrCode) {
+            System.out.println(String.format("获取到登录二维码：%s", qrCode.getAbsolutePath()));
         }
 
         @Override
         public void onAvatar(String base64Avatar) {
+            System.out.println(String.format("获取到用户头像：%s", base64Avatar));
         }
 
         @Override
         public void onFailure(String reason) {
+            System.out.println(String.format("程序异常：%s", reason));
         }
 
         @Override
         public void onLogin() {
+            System.out.println("登录成功");
         }
 
         @Override
@@ -58,8 +62,9 @@ public class QQDemo {
 
         @Override
         public void onLogout() {
+            System.out.println("退出登录");
         }
-    }, null, handler);
+    }, null, HANDLER);
 
     public static void main(String[] args) {
         qqClient.startup();

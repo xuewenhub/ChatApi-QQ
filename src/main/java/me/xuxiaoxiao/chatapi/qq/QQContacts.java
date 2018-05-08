@@ -9,10 +9,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 class QQContacts {
-    public final HashMap<Integer, Category> categories = new HashMap<>();
-    public final HashMap<Long, User> friends = new HashMap<>();
-    public final HashMap<Long, Group> groups = new HashMap<>();
-    public final HashMap<Long, Discuss> discusses = new HashMap<>();
-    public final ArrayList<Object> recent = new ArrayList<>();
+    final HashMap<Integer, Category> categories = new HashMap<>();
+    final HashMap<Long, User> friends = new HashMap<>();
+    final HashMap<Long, Group> groups = new HashMap<>();
+    final HashMap<Long, Discuss> discusses = new HashMap<>();
+    final ArrayList<Object> recent = new ArrayList<>();
     public User me;
 }

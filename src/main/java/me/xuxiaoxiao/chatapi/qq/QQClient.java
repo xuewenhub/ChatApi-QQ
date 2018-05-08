@@ -8,6 +8,7 @@ import java.io.File;
 import java.net.HttpCookie;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Objects;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 
@@ -32,17 +33,22 @@ public class QQClient {
     private String checkSig;
 
     public QQClient(QQChatListener qqChatListener) {
-        this(qqChatListener, null, new ConsoleHandler());
+        this(qqChatListener, null, null);
     }
 
     public QQClient(QQChatListener qqChatListener, File folder, Handler handler) {
-        this.qqChatListener = qqChatListener;
-        this.folder = folder == null ? new File("") : folder;
-        if (handler != null) {
-            QQTools.LOGGER.setLevel(handler.getLevel());
-            QQTools.LOGGER.setUseParentHandlers(false);
-            QQTools.LOGGER.addHandler(handler);
+        Objects.requireNonNull(qqChatListener);
+        if (folder == null) {
+            folder = new File("");
         }
+        if (handler == null) {
+            handler = new ConsoleHandler();
+        }
+        this.qqChatListener = qqChatListener;
+        this.folder = folder;
+        QQTools.LOGGER.setLevel(handler.getLevel());
+        QQTools.LOGGER.setUseParentHandlers(false);
+        QQTools.LOGGER.addHandler(handler);
     }
 
     public void startup() {
@@ -90,74 +96,78 @@ public class QQClient {
     }
 
     public void sendFriend(long friend, String content) {
-        QQTools.LOGGER.finer(String.format("向好友 %d 发送消息：%s", friend, content));
+        QQTools.LOGGER.fine(String.format("向好友 %d 发送消息：%s", friend, content));
         qqAPI.send_buddy_msg2(friend, content);
     }
 
     public void sendGroup(long group, String content) {
-        QQTools.LOGGER.finer(String.format("向群 %d 发送消息：%s", group, content));
-        qqAPI.send_buddy_msg2(group, content);
+        QQTools.LOGGER.fine(String.format("向群 %d 发送消息：%s", group, content));
+        qqAPI.send_qun_msg2(group, content);
     }
 
     public void sendDiscuss(long discuss, String content) {
-        QQTools.LOGGER.finer(String.format("向讨论组 %d 发送消息：%s", discuss, content));
+        QQTools.LOGGER.fine(String.format("向讨论组 %d 发送消息：%s", discuss, content));
         qqAPI.send_discu_msg2(discuss, content);
     }
 
-    public interface QQChatListener {
-        void onQRCode(File qrCode);
+    public abstract static class QQChatListener {
 
-        void onAvatar(String base64Avatar);
+        public abstract void onQRCode(File qrCode);
 
-        void onFailure(String reason);
+        public void onAvatar(String base64Avatar) {
+        }
 
-        void onLogin();
+        public void onFailure(String reason) {
+        }
 
-        void onUserMessage(int msgId, User from, String content);
+        public void onLogin() {
+        }
 
-        void onGroupMessage(int msgId, Group group, User from, String content);
+        public void onUserMessage(int msgId, User from, String content) {
+        }
 
-        void onDiscussMessage(int msgId, Discuss discuss, User from, String content);
+        public void onGroupMessage(int msgId, Group group, User from, String content) {
+        }
 
-        void onLogout();
+        public void onDiscussMessage(int msgId, Discuss discuss, User from, String content) {
+        }
+
+        public void onLogout() {
+        }
     }
 
     private class QQThread extends Thread {
-        private int loginCount = 0;
-        private int emptyCount = 0;
-        private int retryCount = 0;
-        private long lastEmpty = 0;
 
         @Override
         public void run() {
+            int loginCount = 0;
             while (!isInterrupted()) {
                 //用户登录
-                QQTools.LOGGER.fine("正在登录");
+                QQTools.LOGGER.finer(String.format("正在进行第%d次登录", loginCount));
                 String loginErr = login();
                 if (!XTools.strEmpty(loginErr)) {
-                    QQTools.LOGGER.severe(String.format("登录出现错误：%s", loginErr));
                     qqChatListener.onFailure(loginErr);
                     return;
                 }
                 //用户初始化
-                QQTools.LOGGER.fine("正在初始化");
+                QQTools.LOGGER.finer("正在初始化");
                 String initErr = initial();
                 if (!XTools.strEmpty(initErr)) {
-                    QQTools.LOGGER.severe(String.format("初始化出现错误：%s", initErr));
                     qqChatListener.onFailure(initErr);
                     return;
                 }
                 qqChatListener.onLogin();
                 //同步消息
-                QQTools.LOGGER.fine("正在监听消息");
+                QQTools.LOGGER.finer("正在监听消息");
                 String listenErr = listen();
                 if (!XTools.strEmpty(listenErr)) {
-                    QQTools.LOGGER.severe(String.format("监听消息出现错误：%s", listenErr));
-                    qqChatListener.onFailure(listenErr);
                     if (loginCount++ > 10) {
+                        qqChatListener.onFailure(listenErr);
                         return;
                     }
                 }
+                //退出登录
+                QQTools.LOGGER.finer("正在退出登录");
                 qqChatListener.onLogout();
             }
         }
@@ -191,30 +201,30 @@ public class QQClient {
                                 qqAPI.check_sig(rspQRLogin.uri);
                                 return null;
                             case 66:
-                                QQTools.LOGGER.finer("已扫描二维码");
+                                QQTools.LOGGER.finer("等待操作中");
                                 break;
                             case 67:
                                 QQTools.LOGGER.finer("等待授权登录");
                                 break;
                             default:
-                                QQTools.LOGGER.finer("登录超时");
+                                QQTools.LOGGER.finer("二维码已失效");
                                 return LOGIN_EXCEPTION;
                         }
                     }
                 } else {
-                    QQTools.LOGGER.finer("重新登录");
                     qqAPI.check_sig(checkSig);
                     return null;
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                QQTools.LOGGER.warning(String.format("登录异常：%s", e.getMessage()));
-                return LOGIN_EXCEPTION + Arrays.toString(e.getStackTrace());
+                QQTools.LOGGER.severe(String.format("登录异常：%s\n%s", e.getMessage(), Arrays.toString(e.getStackTrace())));
+                return LOGIN_EXCEPTION;
             }
         }
 
         private String initial() {
             try {
+                //登录初始化
                 qqAPI.getvfwebqq();
                 qqAPI.login2();
                 //获取自身信息
@@ -274,25 +284,30 @@ public class QQClient {
                 return null;
             } catch (Exception e) {
                 e.printStackTrace();
-                QQTools.LOGGER.warning(String.format("初始化异常：%s", e.getMessage()));
-                return INIT_EXCEPTION + Arrays.toString(e.getStackTrace());
+                QQTools.LOGGER.severe(String.format("初始化异常：%s\n%s", e.getMessage(), Arrays.toString(e.getStackTrace())));
+                return INIT_EXCEPTION;
             }
         }
 
         private String listen() {
+            int emptyCount = 0;
+            int retryCount = 0;
+            long lastEmpty = 0;
             try {
                 while (!isInterrupted()) {
                     try {
                         BaseRsp<ResultPoll> rspPoll = qqAPI.poll2();
                         if (rspPoll.result != null) {
-                            QQTools.LOGGER.finer("获取到消息");
+                            QQTools.LOGGER.finest(String.format("获取到消息：%s", QQTools.GSON.toJson(rspPoll)));
                             for (ResultPoll.Item item : rspPoll.result) {
                                 switch (item.poll_type) {
                                     case "message": {
                                         UserMessage userMessage = (UserMessage) item.value;
                                         User user = qqContacts.friends.get(userMessage.fromUser);
                                         if (user == null || (XTools.strEmpty(user.birthday) && XTools.strEmpty(user.gender))) {
-                                            user = qqAPI.get_friend_info2(userMessage.fromUser).result;
+                                            BaseRsp<User> rspUser = qqAPI.get_friend_info2(userMessage.fromUser);
+                                            QQTools.LOGGER.finest(String.format("获取好友信息：%s", QQTools.GSON.toJson(rspUser)));
+                                            user = rspUser.result;
                                             qqContacts.friends.put(user.uin, user);
                                         }
                                         qqChatListener.onUserMessage(userMessage.msgId, user, userMessage.content);
@@ -303,7 +318,7 @@ public class QQClient {
                                         Group group = qqContacts.groups.get(groupMessage.fromGroup);
                                         if (group.members == null) {
                                             BaseRsp<ResultGetGroupInfo> rspGroup = qqAPI.get_group_info_ext2(group.code);
-                                            QQTools.LOGGER.finer("获取群信息：" + QQTools.GSON.toJson(rspGroup));
+                                            QQTools.LOGGER.finest(String.format("获取群信息：%s", QQTools.GSON.toJson(rspGroup)));
                                             group.code = rspGroup.result.ginfo.code;
                                             group.name = rspGroup.result.ginfo.name;
                                             group.flag = rspGroup.result.ginfo.flag;
@@ -355,7 +370,7 @@ public class QQClient {
                                         if (discuss.members == null) {
                                             discuss.members = new HashMap<>();
                                             BaseRsp<ResultGetDiscuInfo> rspDiscuss = qqAPI.get_discu_info(discuss.did);
-                                            QQTools.LOGGER.finer("获取群信息：" + QQTools.GSON.toJson(rspDiscuss));
+                                            QQTools.LOGGER.finest(String.format("获取讨论组信息：%s", QQTools.GSON.toJson(rspDiscuss)));
                                             discuss.name = rspDiscuss.result.info.discu_name;
                                             for (ResultGetDiscuInfo.Info.Member member : rspDiscuss.result.info.mem_list) {
                                                 User user = new User();
@@ -371,7 +386,7 @@ public class QQClient {
                                         break;
                                     }
                                     default:
-                                        QQTools.LOGGER.warning(String.format("获取到未知类型的消息：%s", item.poll_type));
+                                        QQTools.LOGGER.warning(String.format("获取到未知类型的消息：%s", QQTools.GSON.toJson(item)));
                                         break;
                                 }
                             }
@@ -384,7 +399,7 @@ public class QQClient {
                                 QQTools.LOGGER.severe("连接已经失效");
                                 return LISTEN_EXCEPTION;
                             } else {
-                                QQTools.LOGGER.fine("暂无信息");
+                                QQTools.LOGGER.finer("暂无信息");
                                 lastEmpty = System.currentTimeMillis();
                             }
                         }
@@ -392,7 +407,7 @@ public class QQClient {
                     } catch (Exception e) {
                         e.printStackTrace();
                         if (retryCount++ < 5) {
-                            QQTools.LOGGER.warning(String.format("监听失败，重试：%d", retryCount));
+                            QQTools.LOGGER.warning(String.format("监听失败，重试第%d次", retryCount));
                         } else {
                             QQTools.LOGGER.severe("监听失败，重试次数过多");
                             return LISTEN_EXCEPTION;
@@ -402,6 +417,7 @@ public class QQClient {
                 return null;
             } catch (Exception e) {
                 e.printStackTrace();
+                QQTools.LOGGER.severe(String.format("监听异常：%s\n%s", e.getMessage(), Arrays.toString(e.getStackTrace())));
                 return LISTEN_EXCEPTION;
             }
         }

@@ -95,11 +95,19 @@ class QQAPI {
         return new RspQRLogin(XTools.http(httpOption, request).string());
     }
 
+    /**
+     * 授权登录网页qq后，在返回的信息里包含了一个uri，通过访问这个uri可以获得登录相关的cookie
+     *
+     * @param uri 授权登录返回信息里的uri
+     */
     public void check_sig(String uri) {
         XRequest request = XRequest.GET(uri);
         XTools.http(httpOption, request);
     }
 
+    /**
+     * 获取重要参数vfwebqq
+     */
     public void getvfwebqq() {
         XRequest request = XRequest.GET("http://s.web2.qq.com/api/getvfwebqq");
         request.query("clientid", 53999199);
@@ -112,6 +120,11 @@ class QQAPI {
         this.vfwebqq = resultVFWebqq.result.vfwebqq;
     }
 
+    /**
+     * 登录，返回qq号和重要参数psessionid
+     *
+     * @return 登录返回信息
+     */
     public BaseRsp<ResultLogin> login2() {
         XRequest request = XRequest.POST("http://d1.web2.qq.com/channel/login2");
         request.header("Origin", "http://d1.web2.qq.com");
@@ -124,6 +137,11 @@ class QQAPI {
         return resultLogin;
     }
 
+    /**
+     * 获取用户好友列表
+     *
+     * @return 获取用户好友列表返回信息
+     */
     public BaseRsp<ResultGetUserFriends> get_user_friends2() {
         XRequest request = XRequest.POST("http://s.web2.qq.com/api/get_user_friends2");
         request.header("Origin", "http://s.web2.qq.com");
@@ -133,6 +151,11 @@ class QQAPI {
         }.getType());
     }
 
+    /**
+     * 获取用户群列表
+     *
+     * @return 获取用户群列表返回信息
+     */
     public BaseRsp<ResultGetGroupNameListMask> get_group_name_list_mask2() {
         XRequest request = XRequest.POST("http://s.web2.qq.com/api/get_group_name_list_mask2");
         request.header("Origin", "http://s.web2.qq.com");
@@ -142,6 +165,11 @@ class QQAPI {
         }.getType());
     }
 
+    /**
+     * 获取用户讨论组列表
+     *
+     * @return 获取用户讨论组列表返回信息
+     */
     public BaseRsp<ResultGetDiscusList> get_discus_list() {
         XRequest request = XRequest.GET("http://s.web2.qq.com/api/get_discus_list");
         request.query("clientid", 53999199);
@@ -153,6 +181,11 @@ class QQAPI {
         }.getType());
     }
 
+    /**
+     * 获取自身信息
+     *
+     * @return 获取自身信息返回信息
+     */
     public BaseRsp<User> get_self_info2() {
         XRequest request = XRequest.GET("http://s.web2.qq.com/api/get_self_info2");
         request.query("t", System.currentTimeMillis());
@@ -161,6 +194,11 @@ class QQAPI {
         }.getType());
     }
 
+    /**
+     * 获取最近联系人列表
+     *
+     * @return 获取最近联系人列表返回信息
+     */
     public BaseRsp<ResultGetRecentList> get_recent_list2() {
         XRequest request = XRequest.POST("http://d1.web2.qq.com/channel/get_recent_list2");
         request.header("Origin", "http://d1.web2.qq.com");
@@ -171,6 +209,11 @@ class QQAPI {
         }.getType());
     }
 
+    /**
+     * 获取在线好友列表
+     *
+     * @return 获取在线好友列表返回信息
+     */
     public BaseRsp<ResultGetOnlineBuddies> get_online_buddies2() {
         XRequest request = XRequest.GET("http://d1.web2.qq.com/channel/get_online_buddies2");
         request.query("clientid", 53999199);
@@ -182,7 +225,11 @@ class QQAPI {
         }.getType());
     }
 
-
+    /**
+     * 监听消息，服务端会保持一分钟，期间有新的消息时，会立刻返回
+     *
+     * @return 监听消息返回信息
+     */
     public BaseRsp<ResultPoll> poll2() {
         XRequest request = XRequest.POST("http://d1.web2.qq.com/channel/poll2");
         request.header("Origin", "http://d1.web2.qq.com");
@@ -192,6 +239,12 @@ class QQAPI {
         }.getType());
     }
 
+    /**
+     * 获取单个用户信息
+     *
+     * @param uin 用户uin
+     * @return 用户信息
+     */
     public BaseRsp<User> get_friend_info2(long uin) {
         XRequest request = XRequest.GET("http://s.web2.qq.com/api/get_friend_info2");
         request.query("clientid", 53999199);
@@ -204,6 +257,12 @@ class QQAPI {
         }.getType());
     }
 
+    /**
+     * 获取用户个性签名
+     *
+     * @param uin 用户uin
+     * @return 用户个性签名
+     */
     public BaseRsp<ResultLongNick> get_single_long_nick2(long uin) {
         XRequest request = XRequest.GET("http://s.web2.qq.com/api/get_single_long_nick2");
         request.query("t", System.currentTimeMillis());
@@ -214,6 +273,12 @@ class QQAPI {
         }.getType());
     }
 
+    /**
+     * 获取群信息
+     *
+     * @param gcode 群code
+     * @return 群信息
+     */
     public BaseRsp<ResultGetGroupInfo> get_group_info_ext2(long gcode) {
         XRequest request = XRequest.GET("http://s.web2.qq.com/api/get_group_info_ext2");
         request.query("gcode", gcode);
@@ -224,6 +289,12 @@ class QQAPI {
         }.getType());
     }
 
+    /**
+     * 获取讨论组信息
+     *
+     * @param did 讨论组id
+     * @return 讨论组信息
+     */
     public BaseRsp<ResultGetDiscuInfo> get_discu_info(long did) {
         XRequest request = XRequest.GET("http://d1.web2.qq.com/channel/get_discu_info");
         request.query("clientid", 53999199);
@@ -236,6 +307,13 @@ class QQAPI {
         }.getType());
     }
 
+    /**
+     * 发送群消息
+     *
+     * @param group   群in
+     * @param content 要发送的信息
+     * @return 发送群消息返回信息
+     */
     public BaseRsp send_qun_msg2(long group, String content) {
         XRequest request = XRequest.POST("http://d1.web2.qq.com/channel/send_qun_msg2");
         request.header("Origin", "http://d1.web2.qq.com");
@@ -244,6 +322,13 @@ class QQAPI {
         return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), BaseRsp.class);
     }
 
+    /**
+     * 发送讨论组消息
+     *
+     * @param discuss 讨论组id
+     * @param content 要发送的消息
+     * @return 发送讨论组消息返回信息
+     */
     public BaseRsp send_discu_msg2(long discuss, String content) {
         XRequest request = XRequest.POST("http://d1.web2.qq.com/channel/send_discu_msg2");
         request.header("Origin", "http://d1.web2.qq.com");
@@ -252,6 +337,13 @@ class QQAPI {
         return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), BaseRsp.class);
     }
 
+    /**
+     * 发送好友消息
+     *
+     * @param friend  好友in
+     * @param content 要发送的消息
+     * @return 发送好友消息返回信息
+     */
     public BaseRsp send_buddy_msg2(long friend, String content) {
         XRequest request = XRequest.POST("http://d1.web2.qq.com/channel/send_buddy_msg2");
         request.header("Origin", "http://d1.web2.qq.com");
@@ -260,6 +352,12 @@ class QQAPI {
         return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), BaseRsp.class);
     }
 
+    /**
+     * 更改qq状态
+     *
+     * @param status 状态字符串
+     * @return 更改qq状态返回信息
+     */
     public BaseRsp change_status2(String status) {
         XRequest request = XRequest.GET("http://d1.web2.qq.com/channel/change_status2");
         request.query("clientid", 53999199);
