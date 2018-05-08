@@ -164,11 +164,14 @@ public class QQClient {
                     if (loginCount++ > 10) {
                         qqChatListener.onFailure(listenErr);
                         return;
+                    } else {
+                        continue;
                     }
                 }
                 //退出登录
                 QQTools.LOGGER.finer("正在退出登录");
                 qqChatListener.onLogout();
+                return;
             }
         }
 
