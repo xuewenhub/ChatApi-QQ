@@ -1,9 +1,6 @@
 package me.xuxiaoxiao.chatapi.qq.protocol;
 
 import com.google.gson.*;
-import me.xuxiaoxiao.chatapi.qq.entity.DiscussMessage;
-import me.xuxiaoxiao.chatapi.qq.entity.GroupMessage;
-import me.xuxiaoxiao.chatapi.qq.entity.UserMessage;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -12,105 +9,55 @@ public class ResultPoll extends ArrayList<ResultPoll.Item> {
 
     public static class Item {
         public String poll_type;
-        public Object value;
-    }
+        public Message value;
 
-    public static class Font {
-        public String name = "宋体";
-        public String color = "000000";
-        public int size = 10;
-        public int[] style = {0, 0, 0};
-    }
-
-    public static class MessageParser implements JsonDeserializer {
-
-        @Override
-        public Object deserialize(JsonElement jsonElement, Type type, JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
-            ResultPoll resultPoll = new ResultPoll();
-            JsonArray jArr = jsonElement.getAsJsonArray();
-            for (int i = 0; i < jArr.size(); i++) {
-                Item item = new Item();
-                JsonObject itemObj = jArr.get(i).getAsJsonObject();
-                item.poll_type = itemObj.get("poll_type").getAsString();
-                JsonObject valueObj = itemObj.get("value").getAsJsonObject();
-                switch (item.poll_type) {
-                    case "message": {
-                        UserMessage message = new UserMessage();
-                        message.msgId = valueObj.get("msg_id").getAsInt();
-                        message.msgType = valueObj.get("msg_type").getAsInt();
-                        message.fromUser = valueObj.get("from_uin").getAsLong();
-                        message.toUser = valueObj.get("to_uin").getAsLong();
-                        JsonArray content = valueObj.get("content").getAsJsonArray();
-                        message.font = parseFont(content.get(0));
-                        StringBuilder sbStr = new StringBuilder();
-                        for (int ci = 1; ci < content.size(); ci++) {
-                            if (content.get(ci).isJsonPrimitive()) {
-                                sbStr.append(content.get(ci).getAsString());
-                            }
-                        }
-                        message.content = sbStr.toString();
-                        message.time = valueObj.get("time").getAsLong();
-                        item.value = message;
-                        break;
-                    }
-                    case "group_message": {
-                        GroupMessage message = new GroupMessage();
-                        message.msgId = valueObj.get("msg_id").getAsInt();
-                        message.msgType = valueObj.get("msg_type").getAsInt();
-                        message.fromGroup = valueObj.get("from_uin").getAsLong();
-                        message.fromUser = valueObj.get("send_uin").getAsLong();
-                        message.toUser = valueObj.get("to_uin").getAsLong();
-                        JsonArray content = valueObj.get("content").getAsJsonArray();
-                        message.font = parseFont(content.get(0));
-                        StringBuilder sbStr = new StringBuilder();
-                        for (int ci = 1; ci < content.size(); ci++) {
-                            if (content.get(ci).isJsonPrimitive()) {
-                                sbStr.append(content.get(ci).getAsString());
-                            }
-                        }
-                        message.content = sbStr.toString();
-                        message.time = valueObj.get("time").getAsLong();
-                        item.value = message;
-                        break;
-                    }
-                    case "discu_message": {
-                        DiscussMessage message = new DiscussMessage();
-                        message.msgId = valueObj.get("msg_id").getAsInt();
-                        message.msgType = valueObj.get("msg_type").getAsInt();
-                        message.fromDiscuss = valueObj.get("from_uin").getAsLong();
-                        message.fromUser = valueObj.get("send_uin").getAsLong();
-                        message.toUser = valueObj.get("to_uin").getAsLong();
-                        JsonArray content = valueObj.get("content").getAsJsonArray();
-                        message.font = parseFont(content.get(0));
-                        StringBuilder sbStr = new StringBuilder();
-                        for (int ci = 1; ci < content.size(); ci++) {
-                            if (content.get(ci).isJsonPrimitive()) {
-                                sbStr.append(content.get(ci).getAsString());
-                            }
-                        }
-                        message.content = sbStr.toString();
-                        message.time = valueObj.get("time").getAsLong();
-                        item.value = message;
-                        break;
-                    }
-                }
-                resultPoll.add(item);
-            }
-            return resultPoll;
+        public static class Message {
+            public long from_uin;
+            public long group_code;
+            public long did;
+            public long msg_id;
+            public int msg_type;
+            public long send_uin;
+            public long time;
+            public long to_uin;
+            public Content content;
         }
 
-        public Font parseFont(JsonElement element) {
-            JsonObject jObj = element.getAsJsonArray().get(1).getAsJsonObject();
-            Font font = new Font();
-            font.name = jObj.get("name").getAsString();
-            font.color = jObj.get("color").getAsString();
-            font.size = jObj.get("size").getAsInt();
-            JsonArray styleArr = jObj.get("style").getAsJsonArray();
+        public static class Content extends ArrayList<Object> {
+
+            public static class Font {
+                public String name = "宋体";
+                public String color = "000000";
+                public int size = 10;
+                public int[] style = {0, 0, 0};
+            }
+        }
+    }
+
+    public static class ContentParser implements JsonDeserializer<Item.Content> {
+
+        @Override
+        public Item.Content deserialize(JsonElement jsonElement, Type type, JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+            JsonArray contentJson = jsonElement.getAsJsonArray();
+            Item.Content content = new Item.Content();
+
+            JsonObject fontJson = contentJson.get(0).getAsJsonArray().get(1).getAsJsonObject();
+            Item.Content.Font font = new Item.Content.Font();
+            font.name = fontJson.get("name").getAsString();
+            font.color = fontJson.get("color").getAsString();
+            font.size = fontJson.get("size").getAsInt();
+            JsonArray styleArr = fontJson.get("style").getAsJsonArray();
             font.style = new int[styleArr.size()];
             for (int i = 0; i < font.style.length; i++) {
                 font.style[i] = styleArr.get(i).getAsInt();
             }
-            return font;
+            content.add(font);
+            for (int i = 1; i < contentJson.size(); i++) {
+                if (contentJson.get(i).isJsonPrimitive()) {
+                    content.add(contentJson.get(i).getAsString());
+                }
+            }
+            return content;
         }
     }
 }

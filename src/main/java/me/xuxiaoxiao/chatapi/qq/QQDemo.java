@@ -1,22 +1,13 @@
 package me.xuxiaoxiao.chatapi.qq;
 
-import me.xuxiaoxiao.chatapi.qq.entity.Discuss;
-import me.xuxiaoxiao.chatapi.qq.entity.Group;
-import me.xuxiaoxiao.chatapi.qq.entity.User;
+import me.xuxiaoxiao.chatapi.qq.entity.message.QQMessage;
 
 import java.io.File;
 import java.util.Scanner;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Level;
 
 public class QQDemo {
-    public static final ConsoleHandler HANDLER = new ConsoleHandler();
 
-    static {
-        HANDLER.setLevel(Level.FINER);
-    }
-
-    public static final QQClient qqClient = new QQClient(new QQClient.QQChatListener() {
+    public static final QQClient QQ_CLIENT = new QQClient(new QQClient.QQChatListener() {
         @Override
         public void onQRCode(File qrCode) {
             System.out.println(String.format("获取到登录二维码：%s", qrCode.getAbsolutePath()));
@@ -28,7 +19,7 @@ public class QQDemo {
         }
 
         @Override
-        public void onFailure(String reason) {
+        public void onException(String reason) {
             System.out.println(String.format("程序异常：%s", reason));
         }
 
@@ -38,25 +29,15 @@ public class QQDemo {
         }
 
         @Override
-        public void onUserMessage(int msgId, User from, String content) {
-            System.out.println(String.format("好友 %s 说：%s", from.nick, content));
-        }
-
-        @Override
-        public void onGroupMessage(int msgId, Group group, User from, String content) {
-            if (from.uin == qqClient.userMe().uin) {
-                System.out.println(String.format("我在群 %s 中说：%s", group.name, content));
-            } else {
-                System.out.println(String.format("群 %s 中的 %s 说：%s", group.name, from.nick, content));
+        public void onMessage(QQMessage qqMessage) {
+            if (qqMessage.fromGroup != null && qqMessage.fromGroupMember.id != QQ_CLIENT.userMe().id) {
+                QQ_CLIENT.sendText(qqMessage.fromGroup, qqMessage.content);
             }
-        }
-
-        @Override
-        public void onDiscussMessage(int msgId, Discuss discuss, User from, String content) {
-            if (from.uin == qqClient.userMe().uin) {
-                System.out.println(String.format("我在讨论组 %s 中说：%s", discuss.name, content));
-            } else {
-                System.out.println(String.format("讨论组 %s 中的 %s 说：%s", discuss.name, from.nick, content));
+            if (qqMessage.fromDiscuss != null && qqMessage.fromDiscussMember.id != QQ_CLIENT.userMe().id) {
+                QQ_CLIENT.sendText(qqMessage.fromDiscuss, qqMessage.content);
+            }
+            if (qqMessage.fromUser != null && qqMessage.fromUser.id != QQ_CLIENT.userMe().id) {
+                QQ_CLIENT.sendText(qqMessage.fromUser, qqMessage.content);
             }
         }
 
@@ -64,41 +45,41 @@ public class QQDemo {
         public void onLogout() {
             System.out.println("退出登录");
         }
-    }, null, HANDLER);
+    });
 
     public static void main(String[] args) {
-        qqClient.startup();
+        QQ_CLIENT.startup();
         Scanner scanner = new Scanner(System.in);
         while (true) {
             System.out.println("请输入指令");
             switch (scanner.nextLine()) {
                 case "sendFriend": {
-                    System.out.println("friend:");
-                    long friend = Long.parseLong(scanner.nextLine());
+                    System.out.println("friendId:");
+                    long friendId = Long.parseLong(scanner.nextLine());
                     System.out.println("content:");
                     String content = scanner.nextLine();
-                    qqClient.sendFriend(friend, content);
+                    QQ_CLIENT.sendText(QQ_CLIENT.userFriend(friendId), content);
                 }
                 break;
                 case "sendGroup": {
-                    System.out.println("group:");
-                    long group = Long.parseLong(scanner.nextLine());
+                    System.out.println("groupId:");
+                    long groupId = Long.parseLong(scanner.nextLine());
                     System.out.println("content:");
                     String content = scanner.nextLine();
-                    qqClient.sendGroup(group, content);
+                    QQ_CLIENT.sendText(QQ_CLIENT.userGroup(groupId), content);
                 }
                 break;
                 case "sendDiscuss": {
-                    System.out.println("discuss:");
-                    long discuss = Long.parseLong(scanner.nextLine());
+                    System.out.println("discussId:");
+                    long discussId = Long.parseLong(scanner.nextLine());
                     System.out.println("content:");
                     String content = scanner.nextLine();
-                    qqClient.sendDiscuss(discuss, content);
+                    QQ_CLIENT.sendText(QQ_CLIENT.userDiscuss(discussId), content);
                 }
                 break;
                 case "quit":
                     System.out.println("logging out");
-                    qqClient.shutdown();
+                    QQ_CLIENT.shutdown();
                     return;
                 default:
                     System.out.println("未知指令");

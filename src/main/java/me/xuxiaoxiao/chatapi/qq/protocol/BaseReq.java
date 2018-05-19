@@ -1,6 +1,10 @@
 package me.xuxiaoxiao.chatapi.qq.protocol;
 
+import java.util.Random;
+
 public class BaseReq {
+    public static int MSGID = new Random().nextInt(10000) * 10000;
+
     public long clientid = 53999199;
     public String key = "";
     public String status = "online";

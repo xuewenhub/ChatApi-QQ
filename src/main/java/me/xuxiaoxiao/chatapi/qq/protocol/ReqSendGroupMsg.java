@@ -2,10 +2,7 @@ package me.xuxiaoxiao.chatapi.qq.protocol;
 
 import com.google.gson.Gson;
 
-import java.util.Random;
-
 public class ReqSendGroupMsg {
-    public static int MSGID = new Random().nextInt() % 10000;
 
     public long group_uin;
     public String content;
@@ -14,10 +11,10 @@ public class ReqSendGroupMsg {
     public long msg_id;
     public String psessionid;
 
-    public ReqSendGroupMsg(long group, String content, String psessionid) {
-        this.group_uin = group;
-        this.content = new Gson().toJson(new Object[]{content, new ResultPoll.Font()});
-        this.msg_id = MSGID++;
+    public ReqSendGroupMsg(long groupId, String content, String psessionid) {
+        this.group_uin = groupId;
+        this.content = new Gson().toJson(new Object[]{content, new Object[]{"font", new ResultPoll.Item.Content.Font()}});
+        this.msg_id = BaseReq.MSGID++;
         this.psessionid = psessionid;
     }
 }

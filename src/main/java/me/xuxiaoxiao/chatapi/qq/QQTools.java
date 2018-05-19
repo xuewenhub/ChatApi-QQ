@@ -2,14 +2,13 @@ package me.xuxiaoxiao.chatapi.qq;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import me.xuxiaoxiao.chatapi.qq.entity.User;
 import me.xuxiaoxiao.chatapi.qq.protocol.ResultPoll;
 
 import java.util.logging.Logger;
 
-class QQTools {
+final class QQTools {
     static final Logger LOGGER = Logger.getLogger("me.xuxiaoxiao.chatapi.qq");
-    static final Gson GSON = new GsonBuilder().registerTypeAdapter(User.class, new User.UserParser()).registerTypeAdapter(ResultPoll.class, new ResultPoll.MessageParser()).create();
+    static final Gson GSON = new GsonBuilder().registerTypeAdapter(ResultPoll.Item.Content.class, new ResultPoll.ContentParser()).create();
 
     static String hash(String qqStr, String ptWebqq) {
         int[] ptWebqqHash = new int[4];
