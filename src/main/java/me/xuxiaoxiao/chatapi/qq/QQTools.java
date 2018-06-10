@@ -6,6 +6,9 @@ import me.xuxiaoxiao.chatapi.qq.protocol.ResultPoll;
 
 import java.util.logging.Logger;
 
+/**
+ * QQ工具类
+ */
 final class QQTools {
     static final Logger LOGGER = Logger.getLogger("me.xuxiaoxiao.chatapi.qq");
     static final Gson GSON = new GsonBuilder().registerTypeAdapter(ResultPoll.Item.Content.class, new ResultPoll.ContentParser()).create();

@@ -1,9 +1,10 @@
 # ChatApi-QQ
-这是一个Java版本的QQ聊天客户端，使用的全部接口来自于网页版QQ，让你能够开发自己的QQ聊天机器人
+Java版本QQ聊天接口，使用网页QQAPI，让你能够开发自己的QQ聊天机器人。
+
+Java版本微信聊天接口请看[ChatApi-WeChat](https://github.com/xuxiaoxiao-xxx/ChatApi-WeChat)
 
 ## 有何优点？
-* 使用了整理后的实体类，屏蔽了网页版QQ杂乱的数据
-* 对接口和流程进行了封装，更加简单易用
+* 对接口、流程、实体类进行了封装，更加简单易用
 * 暴露了一个监听器，可以自己实现监听器以开发自己的业务功能
 * 网页版QQ全部功能的支持
     * 监听好友、群、讨论组消息
@@ -57,6 +58,7 @@ public class QQDemo {
         
         @Override
         public void onMessage(QQMessage qqMessage) {
+            System.out.println(QQTools.GSON.toJson(qqMessage));
             if (qqMessage.fromGroup != null && qqMessage.fromGroupMember.id != QQ_CLIENT.userMe().id) {
                 QQ_CLIENT.sendText(qqMessage.fromGroup, qqMessage.content);
             }
@@ -115,4 +117,5 @@ public class QQDemo {
         }
     }
 }
+
 ```

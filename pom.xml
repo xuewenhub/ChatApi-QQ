@@ -2,9 +2,9 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>me.xuxiaoxiao</groupId>
     <artifactId>chatapi-qq</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <name>chatapi-qq</name>
-    <description>网页QQAPI，利用网页QQ接口开发自己的QQ聊天机器人</description>
+    <description>Java版本QQ聊天接口，使用网页QQAPI，让你能够开发自己的QQ聊天机器人。</description>
     <url>https://github.com/xuxiaoxiao-xxx/ChatApi-QQ</url>
 
     <properties>

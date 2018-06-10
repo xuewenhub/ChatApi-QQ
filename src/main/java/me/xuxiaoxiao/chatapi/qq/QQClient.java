@@ -17,6 +17,9 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 
+/**
+ * QQ客户端
+ */
 public class QQClient {
     public static final String LOGIN_EXCEPTION = "登陆异常";
     public static final String INIT_EXCEPTION = "初始化异常";
@@ -392,19 +395,26 @@ public class QQClient {
                                         case "message": {
                                             QQUser qqUser = item.value.from_uin == qqContacts.me.id ? qqContacts.me : qqContacts.friends.get(item.value.from_uin);
                                             if (qqUser == null || !qqUser.isDetail) {
-                                                qqUser = qqAPI.get_friend_info2(item.value.from_uin).result.convert();
-                                                ArrayList<ResultLongNick> signatures = qqAPI.get_single_long_nick2(qqUser.id).result;
-                                                if (signatures != null && signatures.size() > 0) {
-                                                    qqUser.signature = signatures.get(0).lnick;
+                                                ResultUser resultUser = qqAPI.get_friend_info2(item.value.from_uin).result;
+                                                if (resultUser != null) {
+                                                    qqUser = resultUser.convert();
+                                                    ArrayList<ResultLongNick> signatures = qqAPI.get_single_long_nick2(qqUser.id).result;
+                                                    if (signatures != null && signatures.size() > 0) {
+                                                        qqUser.signature = signatures.get(0).lnick;
+                                                    }
+                                                    qqContacts.friends.put(qqUser.id, qqUser);
                                                 }
-                                                qqContacts.friends.put(qqUser.id, qqUser);
                                             }
                                             qqMessage = parseCommon(item.value, new QQText());
                                             break;
                                         }
                                         case "group_message": {
                                             QQGroup qqGroup = qqContacts.groups.get(item.value.group_code);
-                                            if (qqGroup.members == null || !qqGroup.members.containsKey(item.value.send_uin)) {
+                                            if (qqGroup == null) {
+                                                //如果被拉进群的话，群消息没有携带群code，所以无法获取群信息，需要重新初始化才行
+                                                QQTools.LOGGER.warning("检测到未知的群，需要重新初始化");
+                                                return LISTEN_EXCEPTION;
+                                            } else if (qqGroup.members == null || !qqGroup.members.containsKey(item.value.send_uin)) {
                                                 qqGroup = qqAPI.get_group_info_ext2(qqGroup.code).result.convert();
                                                 qqContacts.groups.put(qqGroup.id, qqGroup);
                                             }
@@ -413,9 +423,12 @@ public class QQClient {
                                         }
                                         case "discu_message": {
                                             QQDiscuss qqDiscuss = qqContacts.discusses.get(item.value.did);
-                                            if (qqDiscuss.members == null || !qqDiscuss.members.containsKey(item.value.send_uin)) {
-                                                qqDiscuss = qqAPI.get_discu_info(qqDiscuss.id).result.convert();
-                                                qqContacts.discusses.put(qqDiscuss.id, qqDiscuss);
+                                            if (qqDiscuss == null || qqDiscuss.members == null || !qqDiscuss.members.containsKey(item.value.send_uin)) {
+                                                ResultGetDiscuInfo resultGetDiscuInfo = qqAPI.get_discu_info(item.value.did).result;
+                                                if (resultGetDiscuInfo != null) {
+                                                    qqDiscuss = resultGetDiscuInfo.convert();
+                                                    qqContacts.discusses.put(qqDiscuss.id, qqDiscuss);
+                                                }
                                             }
                                             qqMessage = parseCommon(item.value, new QQText());
                                             break;
@@ -452,10 +465,11 @@ public class QQClient {
                                             QQTools.LOGGER.fine(String.format("好友【%s】对我说：%s", qqMessage.fromUser.name, qqMessage.content));
                                         }
                                     }
-                                } else {
+                                    qqChatListener.onMessage(qqMessage);
+                                } else if (qqMessage != null) {
                                     QQTools.LOGGER.fine("收到了未知类型的消息");
+                                    qqChatListener.onMessage(qqMessage);
                                 }
-                                qqChatListener.onMessage(qqMessage);
                             }
                             emptyCount = 0;
                         } else {
@@ -494,11 +508,11 @@ public class QQClient {
             t.id = message.msg_id;
             if (message.group_code > 0) {
                 t.fromGroup = qqContacts.groups.get(message.group_code);
-                t.fromGroupMember = t.fromGroup.members.get(message.send_uin);
+                t.fromGroupMember = t.fromGroup != null ? (t.fromGroup.members != null ? t.fromGroup.members.get(message.send_uin) : null) : null;
             }
             if (message.did > 0) {
                 t.fromDiscuss = qqContacts.discusses.get(message.did);
-                t.fromDiscussMember = t.fromDiscuss.members.get(message.send_uin);
+                t.fromDiscussMember = t.fromDiscuss != null ? (t.fromDiscuss.members != null ? t.fromDiscuss.members.get(message.send_uin) : null) : null;
             }
             if (t.fromGroup == null && t.fromDiscuss == null) {
                 t.fromUser = message.send_uin == qqContacts.me.id ? qqContacts.me : qqContacts.friends.get(message.from_uin);

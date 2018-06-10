@@ -30,6 +30,7 @@ public class QQDemo {
 
         @Override
         public void onMessage(QQMessage qqMessage) {
+            System.out.println(QQTools.GSON.toJson(qqMessage));
             if (qqMessage.fromGroup != null && qqMessage.fromGroupMember.id != QQ_CLIENT.userMe().id) {
                 QQ_CLIENT.sendText(qqMessage.fromGroup, qqMessage.content);
             }
