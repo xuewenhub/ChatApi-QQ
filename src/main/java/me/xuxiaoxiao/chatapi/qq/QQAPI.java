@@ -7,8 +7,6 @@ import me.xuxiaoxiao.xtools.common.http.XOption;
 import me.xuxiaoxiao.xtools.common.http.XRequest;
 
 import java.io.File;
-import java.net.CookieManager;
-import java.net.CookiePolicy;
 import java.util.ArrayList;
 
 /**
@@ -20,12 +18,7 @@ final class QQAPI {
     String vfwebqq;
     String qqStr;
     String psessionid;
-    XOption httpOption = new XOption(60000, 90000) {
-        @Override
-        public CookieManager cookieManager() {
-            return new CookieManager(null, CookiePolicy.ACCEPT_ALL);
-        }
-    };
+    XOption httpOption = new XOption(60000, 90000);
 
     /**
      * 获取登录所需的各参数。这些参数都在Cookie中返回。
@@ -207,7 +200,6 @@ final class QQAPI {
         request.header("Origin", "http://d1.web2.qq.com");
         request.header("Referer", "http://d1.web2.qq.com/proxy.html?v=20151105001&callback=1&id=2");
         request.content("r", QQTools.GSON.toJson(new BaseReq(null, null, vfwebqq, psessionid)));
-
         return QQTools.GSON.fromJson(XTools.http(httpOption, request).string(), new TypeToken<BaseRsp<ResultGetRecentList>>() {
         }.getType());
     }

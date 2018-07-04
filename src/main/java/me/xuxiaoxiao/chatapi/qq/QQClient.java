@@ -515,7 +515,7 @@ public class QQClient {
                 t.fromDiscussMember = t.fromDiscuss != null ? (t.fromDiscuss.members != null ? t.fromDiscuss.members.get(message.send_uin) : null) : null;
             }
             if (t.fromGroup == null && t.fromDiscuss == null) {
-                t.fromUser = message.send_uin == qqContacts.me.id ? qqContacts.me : qqContacts.friends.get(message.from_uin);
+                t.fromUser = message.from_uin == qqContacts.me.id ? qqContacts.me : qqContacts.friends.get(message.from_uin);
             }
             t.toUser = message.to_uin == qqContacts.me.id ? qqContacts.me : qqContacts.friends.get(message.to_uin);
             t.timestamp = message.time * 1000;

@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>me.xuxiaoxiao</groupId>
     <artifactId>chatapi-qq</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
     <name>chatapi-qq</name>
     <description>Java版本QQ聊天接口，使用网页QQAPI，让你能够开发自己的QQ聊天机器人。</description>
     <url>https://github.com/xuxiaoxiao-xxx/ChatApi-QQ</url>
@@ -37,7 +37,7 @@
         <dependency>
             <groupId>me.xuxiaoxiao</groupId>
             <artifactId>xtools-common</artifactId>
-            <version>1.1.1</version>
+            <version>1.1.2</version>
         </dependency>
         <dependency>
             <groupId>com.google.code.gson</groupId>
